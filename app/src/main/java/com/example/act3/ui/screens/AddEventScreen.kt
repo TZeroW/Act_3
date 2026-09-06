@@ -107,6 +107,7 @@ fun AddEventScreen(
     var location by remember { mutableStateOf(eventToEdit?.location ?: "") }
     var category by remember { mutableStateOf(eventToEdit?.category ?: "General") }
 
+    var showErrors by remember { mutableStateOf(false) }
     var isDropdownExpanded by remember { mutableStateOf(false) }
     var showAddCategoryDialog by remember { mutableStateOf(false) }
 
@@ -159,29 +160,35 @@ fun AddEventScreen(
             ) {
                 Button(
                     onClick = {
-                        val finalTitle = title.trim().ifEmpty { "Sin título" }
-                        if (eventToEdit != null) {
-                            viewModel.updateEvent(
-                                eventToEdit.copy(
-                                    title = finalTitle,
-                                    description = description.trim(),
-                                    date = date.trim(),
-                                    location = location.trim(),
-                                    category = category.trim().ifEmpty { "General" }
+                        showErrors = true
+                        val isTitleValid = title.isNotBlank()
+                        val isDescriptionValid = description.isNotBlank()
+                        val isDateValid = date.isNotBlank()
+
+                        if (isTitleValid && isDescriptionValid && isDateValid) {
+                            if (eventToEdit != null) {
+                                viewModel.updateEvent(
+                                    eventToEdit.copy(
+                                        title = title.trim(),
+                                        description = description.trim(),
+                                        date = date.trim(),
+                                        location = location.trim(),
+                                        category = category.trim().ifEmpty { "General" }
+                                    )
                                 )
-                            )
-                        } else {
-                            viewModel.addEvent(
-                                Event(
-                                    title = finalTitle,
-                                    description = description.trim(),
-                                    date = date.trim(),
-                                    location = location.trim(),
-                                    category = category.trim().ifEmpty { "General" }
+                            } else {
+                                viewModel.addEvent(
+                                    Event(
+                                        title = title.trim(),
+                                        description = description.trim(),
+                                        date = date.trim(),
+                                        location = location.trim(),
+                                        category = category.trim().ifEmpty { "General" }
+                                    )
                                 )
-                            )
+                            }
+                            onNavigateBack()
                         }
-                        onNavigateBack()
                     },
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
@@ -223,13 +230,16 @@ fun AddEventScreen(
         ) {
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Campo: Título del Evento (Opcional)
+            // Campo: Título del Evento (OBLIGATORIO)
             FormFieldCard(
                 icon = Icons.Default.TextFields,
                 label = "Título del Evento",
+                isRequired = true,
                 value = title,
                 onValueChange = { title = it },
                 placeholder = "ej. Conferencia Anual 2026",
+                isError = showErrors && title.isBlank(),
+                errorMessage = "¡Título requerido!",
                 trailingContent = {
                     if (title.isNotEmpty()) {
                         IconButton(
@@ -246,10 +256,11 @@ fun AddEventScreen(
                 }
             )
 
-            // Campo: Descripción (Opcional)
+            // Campo: Descripción (OBLIGATORIO)
             FormFieldCard(
                 icon = Icons.AutoMirrored.Filled.Notes,
                 label = "Descripción",
+                isRequired = true,
                 value = description,
                 onValueChange = {
                     if (it.length <= 500) {
@@ -257,19 +268,16 @@ fun AddEventScreen(
                     }
                 },
                 placeholder = "Añade detalles, agenda o notas relevantes sobre el evento...",
+                isError = showErrors && description.isBlank(),
+                errorMessage = "¡Descripción requerida!",
                 minLines = 3,
                 footerContent = {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.End
                     ) {
-                        Text(
-                            text = "Opcional",
-                            fontSize = 12.sp,
-                            color = Color(0xFF64748B)
-                        )
                         Text(
                             text = "${description.length}/500",
                             fontSize = 12.sp,
@@ -279,15 +287,18 @@ fun AddEventScreen(
                 }
             )
 
-            // Campo: Fecha (Opcional - DatePickerDialog)
+            // Campo: Fecha (OBLIGATORIO - DatePickerDialog)
             FormFieldCard(
                 icon = Icons.Default.CalendarToday,
                 label = "Fecha",
+                isRequired = true,
                 value = date,
                 onValueChange = { },
                 readOnly = true,
                 onClick = { datePickerDialog.show() },
                 placeholder = "Toca para elegir fecha (DD/MM/AAAA)",
+                isError = showErrors && date.isBlank(),
+                errorMessage = "¡Fecha requerida!",
                 trailingContent = {
                     IconButton(onClick = { datePickerDialog.show() }) {
                         Icon(
@@ -300,10 +311,11 @@ fun AddEventScreen(
                 }
             )
 
-            // Campo: Ubicación (Opcional)
+            // Campo: Ubicación (OPCIONAL)
             FormFieldCard(
                 icon = Icons.Default.LocationOn,
-                label = "Ubicación",
+                label = "Ubicación (Opcional)",
+                isRequired = false,
                 value = location,
                 onValueChange = { location = it },
                 placeholder = "ej. Auditorio Principal o Enlace Virtual",
@@ -317,7 +329,7 @@ fun AddEventScreen(
                 }
             )
 
-            // Campo: Categoría (Con menú desplegable y botón de eliminar por categoría)
+            // Campo: Categoría (Con menú desplegable y botón de eliminar)
             Box {
                 FormFieldCard(
                     icon = Icons.Default.Widgets,
@@ -596,90 +608,117 @@ private fun AddCategoryDialog(
 private fun FormFieldCard(
     icon: ImageVector,
     label: String,
+    isRequired: Boolean = false,
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
+    isError: Boolean = false,
+    errorMessage: String? = null,
     minLines: Int = 1,
     readOnly: Boolean = false,
     onClick: (() -> Unit)? = null,
     trailingContent: (@Composable () -> Unit)? = null,
     footerContent: (@Composable () -> Unit)? = null
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(DarkSurface)
-            .border(
-                border = BorderStroke(width = 1.dp, color = DarkBorder),
-                shape = RoundedCornerShape(16.dp)
-            )
-            .then(
-                if (onClick != null) Modifier.clickable { onClick() } else Modifier
-            )
-            .padding(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = if (minLines > 1) Alignment.Top else Alignment.CenterVertically
+    Column {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(DarkSurface)
+                .border(
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = if (isError) Color.Red else DarkBorder
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .then(
+                    if (onClick != null) Modifier.clickable { onClick() } else Modifier
+                )
+                .padding(16.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = Color(0xFF9CA3AF),
-                modifier = Modifier
-                    .size(22.dp)
-                    .padding(top = if (minLines > 1) 2.dp else 0.dp)
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp),
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = if (minLines > 1) Alignment.Top else Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = Color(0xFF9CA3AF),
+                    modifier = Modifier
+                        .size(22.dp)
+                        .padding(top = if (minLines > 1) 2.dp else 0.dp)
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    if (value.isEmpty()) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = placeholder,
-                            fontSize = 14.sp,
-                            color = Color(0xFF64748B)
+                            text = label,
+                            style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp),
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                        if (isRequired) {
+                            Text(
+                                text = " *",
+                                style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp),
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF70B2FF)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (value.isEmpty()) {
+                            Text(
+                                text = placeholder,
+                                fontSize = 14.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+
+                        BasicTextField(
+                            value = value,
+                            onValueChange = onValueChange,
+                            readOnly = readOnly,
+                            minLines = minLines,
+                            enabled = onClick == null,
+                            textStyle = TextStyle(
+                                fontSize = 14.sp,
+                                color = Color.White
+                            ),
+                            cursorBrush = SolidColor(PrimaryBlue),
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
 
-                    BasicTextField(
-                        value = value,
-                        onValueChange = onValueChange,
-                        readOnly = readOnly,
-                        minLines = minLines,
-                        enabled = onClick == null,
-                        textStyle = TextStyle(
-                            fontSize = 14.sp,
-                            color = Color.White
-                        ),
-                        cursorBrush = SolidColor(PrimaryBlue),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    if (footerContent != null) {
+                        footerContent()
+                    }
                 }
 
-                if (footerContent != null) {
-                    footerContent()
+                if (trailingContent != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    trailingContent()
                 }
             }
+        }
 
-            if (trailingContent != null) {
-                Spacer(modifier = Modifier.width(8.dp))
-                trailingContent()
-            }
+        if (isError && !errorMessage.isNullOrEmpty()) {
+            Text(
+                text = errorMessage,
+                color = Color.Red,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(start = 12.dp, top = 4.dp)
+            )
         }
     }
 }
