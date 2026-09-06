@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.act3.model.CategoryItem
 import com.example.act3.model.Event
 import com.example.act3.ui.theme.CategoryCompBg
 import com.example.act3.ui.theme.CategoryCompText
@@ -56,6 +57,7 @@ import com.example.act3.ui.theme.TextMuted
 fun EventCard(
     event: Event,
     modifier: Modifier = Modifier,
+    categoryItem: CategoryItem? = null,
     onExpand: (Boolean) -> Unit = {},
     onEditClick: (() -> Unit)? = null
 ) {
@@ -132,7 +134,7 @@ fun EventCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            CategoryBadge(category = event.category)
+            CategoryBadge(categoryName = event.category, categoryItem = categoryItem)
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -152,7 +154,7 @@ fun EventCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = event.date,
+                        text = event.date.ifEmpty { "Sin fecha" },
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.White
                     )
@@ -170,7 +172,7 @@ fun EventCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = event.location,
+                        text = event.location.ifEmpty { "Sin ubicación" },
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.White
                     )
@@ -187,7 +189,7 @@ fun EventCard(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = event.description,
+                    text = event.description.ifEmpty { "Sin descripción" },
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFFCBD5E1)
                 )
@@ -197,13 +199,25 @@ fun EventCard(
 }
 
 @Composable
-private fun CategoryBadge(category: String) {
-    val (bgColor, textColor) = when (category) {
-        "Tecnología" -> CategoryTechBg to CategoryTechText
-        "Educación" -> CategoryEduBg to CategoryEduText
-        "Competencia" -> CategoryCompBg to CategoryCompText
-        else -> Color(0xFF252A36) to Color.White
+private fun CategoryBadge(
+    categoryName: String,
+    categoryItem: CategoryItem? = null
+) {
+    val bgColor = categoryItem?.bgColor ?: when (categoryName) {
+        "Tecnología" -> CategoryTechBg
+        "Educación" -> CategoryEduBg
+        "Competencia" -> CategoryCompBg
+        else -> Color(0xFF252A36)
     }
+
+    val textColor = categoryItem?.textColor ?: when (categoryName) {
+        "Tecnología" -> CategoryTechText
+        "Educación" -> CategoryEduText
+        "Competencia" -> CategoryCompText
+        else -> Color.White
+    }
+
+    val icon = categoryItem?.getIcon()
 
     Box(
         modifier = Modifier
@@ -211,11 +225,23 @@ private fun CategoryBadge(category: String) {
             .background(bgColor)
             .padding(horizontal = 10.dp, vertical = 4.dp)
     ) {
-        Text(
-            text = category,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
-            fontWeight = FontWeight.SemiBold,
-            color = textColor
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = textColor,
+                    modifier = Modifier
+                        .size(14.dp)
+                        .padding(end = 4.dp)
+                )
+            }
+            Text(
+                text = categoryName,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                fontWeight = FontWeight.SemiBold,
+                color = textColor
+            )
+        }
     }
 }

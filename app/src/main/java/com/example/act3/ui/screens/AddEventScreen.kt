@@ -8,6 +8,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,8 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,32 +26,44 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Notes
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Fastfood
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Widgets
+import androidx.compose.material.icons.filled.Work
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,6 +79,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.act3.model.CategoryItem
 import com.example.act3.model.Event
 import com.example.act3.ui.EventViewModel
 import com.example.act3.ui.theme.ButtonBlue
@@ -94,14 +107,10 @@ fun AddEventScreen(
     var location by remember { mutableStateOf(eventToEdit?.location ?: "") }
     var category by remember { mutableStateOf(eventToEdit?.category ?: "General") }
 
-    var showErrors by remember { mutableStateOf(false) }
-    var isValid by remember { mutableStateOf(false) }
+    var isDropdownExpanded by remember { mutableStateOf(false) }
+    var showAddCategoryDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(title, description, date, location) {
-        isValid = title.isNotBlank() && description.isNotBlank() && date.isNotBlank() && location.isNotBlank()
-    }
-
-    // Configuración del DatePickerDialog para selección de fecha
+    // DatePicker setup
     val context = LocalContext.current
     val calendar = Calendar.getInstance()
     val datePickerDialog = remember {
@@ -115,13 +124,6 @@ fun AddEventScreen(
             calendar.get(Calendar.DAY_OF_MONTH)
         )
     }
-
-    val categoriesWithIcons = listOf(
-        "General" to null,
-        "Tecnología" to Icons.Default.Code,
-        "Educación" to Icons.Default.School,
-        "Competencia" to Icons.Default.EmojiEvents
-    )
 
     Scaffold(
         topBar = {
@@ -157,31 +159,29 @@ fun AddEventScreen(
             ) {
                 Button(
                     onClick = {
-                        showErrors = true
-                        if (isValid) {
-                            if (eventToEdit != null) {
-                                viewModel.updateEvent(
-                                    eventToEdit.copy(
-                                        title = title.trim(),
-                                        description = description.trim(),
-                                        date = date.trim(),
-                                        location = location.trim(),
-                                        category = category.trim().ifEmpty { "General" }
-                                    )
+                        val finalTitle = title.trim().ifEmpty { "Sin título" }
+                        if (eventToEdit != null) {
+                            viewModel.updateEvent(
+                                eventToEdit.copy(
+                                    title = finalTitle,
+                                    description = description.trim(),
+                                    date = date.trim(),
+                                    location = location.trim(),
+                                    category = category.trim().ifEmpty { "General" }
                                 )
-                            } else {
-                                viewModel.addEvent(
-                                    Event(
-                                        title = title.trim(),
-                                        description = description.trim(),
-                                        date = date.trim(),
-                                        location = location.trim(),
-                                        category = category.trim().ifEmpty { "General" }
-                                    )
+                            )
+                        } else {
+                            viewModel.addEvent(
+                                Event(
+                                    title = finalTitle,
+                                    description = description.trim(),
+                                    date = date.trim(),
+                                    location = location.trim(),
+                                    category = category.trim().ifEmpty { "General" }
                                 )
-                            }
-                            onNavigateBack()
+                            )
                         }
+                        onNavigateBack()
                     },
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
@@ -223,19 +223,13 @@ fun AddEventScreen(
         ) {
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Campo: Título del Evento
+            // Campo: Título del Evento (Opcional)
             FormFieldCard(
                 icon = Icons.Default.TextFields,
                 label = "Título del Evento",
-                isRequired = true,
                 value = title,
-                onValueChange = {
-                    title = it
-                    if (!showErrors) showErrors = true
-                },
+                onValueChange = { title = it },
                 placeholder = "ej. Conferencia Anual 2026",
-                isError = showErrors && title.isEmpty(),
-                errorMessage = "¡Título requerido!",
                 trailingContent = {
                     if (title.isNotEmpty()) {
                         IconButton(
@@ -252,7 +246,7 @@ fun AddEventScreen(
                 }
             )
 
-            // Campo: Descripción
+            // Campo: Descripción (Opcional)
             FormFieldCard(
                 icon = Icons.AutoMirrored.Filled.Notes,
                 label = "Descripción",
@@ -260,12 +254,9 @@ fun AddEventScreen(
                 onValueChange = {
                     if (it.length <= 500) {
                         description = it
-                        if (!showErrors) showErrors = true
                     }
                 },
                 placeholder = "Añade detalles, agenda o notas relevantes sobre el evento...",
-                isError = showErrors && description.isEmpty(),
-                errorMessage = "¡Descripción requerida!",
                 minLines = 3,
                 footerContent = {
                     Row(
@@ -288,17 +279,15 @@ fun AddEventScreen(
                 }
             )
 
-            // Campo: Fecha (Con selección mediante DatePickerDialog)
+            // Campo: Fecha (Opcional - DatePickerDialog)
             FormFieldCard(
                 icon = Icons.Default.CalendarToday,
-                label = "Fecha (Seleccionar)",
+                label = "Fecha",
                 value = date,
                 onValueChange = { },
                 readOnly = true,
                 onClick = { datePickerDialog.show() },
                 placeholder = "Toca para elegir fecha (DD/MM/AAAA)",
-                isError = showErrors && date.isEmpty(),
-                errorMessage = "¡Fecha requerida!",
                 trailingContent = {
                     IconButton(onClick = { datePickerDialog.show() }) {
                         Icon(
@@ -311,18 +300,13 @@ fun AddEventScreen(
                 }
             )
 
-            // Campo: Ubicación
+            // Campo: Ubicación (Opcional)
             FormFieldCard(
                 icon = Icons.Default.LocationOn,
                 label = "Ubicación",
                 value = location,
-                onValueChange = {
-                    location = it
-                    if (!showErrors) showErrors = true
-                },
+                onValueChange = { location = it },
                 placeholder = "ej. Auditorio Principal o Enlace Virtual",
-                isError = showErrors && location.isEmpty(),
-                errorMessage = "¡Ubicación requerida!",
                 trailingContent = {
                     Icon(
                         imageVector = Icons.Default.Map,
@@ -333,63 +317,104 @@ fun AddEventScreen(
                 }
             )
 
-            // Campo: Categoría
-            FormFieldCard(
-                icon = Icons.Default.Widgets,
-                label = "Categoría",
-                value = category,
-                onValueChange = { },
-                readOnly = true,
-                placeholder = "General",
-                trailingContent = {
-                    Icon(
-                        imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = "Seleccionar",
-                        tint = Color(0xFF9CA3AF),
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            )
+            // Campo: Categoría (Con menú desplegable y botón de eliminar por categoría)
+            Box {
+                FormFieldCard(
+                    icon = Icons.Default.Widgets,
+                    label = "Categoría",
+                    value = category,
+                    onValueChange = { },
+                    readOnly = true,
+                    onClick = { isDropdownExpanded = true },
+                    placeholder = "General",
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = "Seleccionar",
+                            tint = Color(0xFF9CA3AF),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                )
 
-            // Chips horizontales de categoría
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(categoriesWithIcons) { (catName, catIcon) ->
-                    val isSelected = category == catName
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { category = catName },
-                        label = { Text(catName) },
-                        leadingIcon = {
-                            if (isSelected) {
+                DropdownMenu(
+                    expanded = isDropdownExpanded,
+                    onDismissRequest = { isDropdownExpanded = false },
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f)
+                        .background(Color(0xFF1E222D))
+                        .border(1.dp, DarkBorder, RoundedCornerShape(12.dp))
+                ) {
+                    viewModel.categories.forEach { cat ->
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            imageVector = cat.getIcon(),
+                                            contentDescription = null,
+                                            tint = cat.textColor,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(text = cat.name, color = Color.White)
+                                    }
+
+                                    if (!cat.name.equals("General", ignoreCase = true)) {
+                                        IconButton(
+                                            onClick = {
+                                                viewModel.removeCategory(cat.name)
+                                                if (category.equals(cat.name, ignoreCase = true)) {
+                                                    category = "General"
+                                                }
+                                            },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = "Eliminar Categoría",
+                                                tint = Color(0xFFEF4444),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            },
+                            onClick = {
+                                category = cat.name
+                                isDropdownExpanded = false
+                            }
+                        )
+                    }
+
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Default.Check,
+                                    imageVector = Icons.Default.Add,
                                     contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
+                                    tint = PrimaryBlue,
+                                    modifier = Modifier.size(18.dp)
                                 )
-                            } else if (catIcon != null) {
-                                Icon(
-                                    imageVector = catIcon,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Agregar nueva categoría",
+                                    color = PrimaryBlue,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         },
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = Color(0xFF161922),
-                            labelColor = Color(0xFF9CA3AF),
-                            selectedContainerColor = Color(0xFF2C384A),
-                            selectedLabelColor = Color.White,
-                            selectedLeadingIconColor = Color.White
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = isSelected,
-                            borderColor = DarkBorder,
-                            selectedBorderColor = PrimaryBlue
-                        ),
-                        shape = RoundedCornerShape(10.dp)
+                        onClick = {
+                            isDropdownExpanded = false
+                            showAddCategoryDialog = true
+                        }
                     )
                 }
             }
@@ -397,123 +422,264 @@ fun AddEventScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
+
+    // Diálogo para Agregar Nueva Categoría Personalizada
+    if (showAddCategoryDialog) {
+        AddCategoryDialog(
+            onDismiss = { showAddCategoryDialog = false },
+            onCategoryCreated = { newCat ->
+                viewModel.addCategory(newCat)
+                category = newCat.name
+                showAddCategoryDialog = false
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AddCategoryDialog(
+    onDismiss: () -> Unit,
+    onCategoryCreated: (CategoryItem) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+
+    val iconOptions = listOf(
+        "Code" to Icons.Default.Code,
+        "School" to Icons.Default.School,
+        "Trophy" to Icons.Default.EmojiEvents,
+        "Work" to Icons.Default.Work,
+        "Music" to Icons.Default.MusicNote,
+        "Fitness" to Icons.Default.FitnessCenter,
+        "Palette" to Icons.Default.Palette,
+        "Flight" to Icons.Default.Flight,
+        "Fastfood" to Icons.Default.Fastfood,
+        "Star" to Icons.Default.Star
+    )
+
+    var selectedIconKey by remember { mutableStateOf("Code") }
+
+    val colorOptions = listOf(
+        Pair(0xFF1E3A5FL, 0xFF70B2FFL), // Blue
+        Pair(0xFF123B2BL, 0xFF4EE29BL), // Green
+        Pair(0xFF3B1E5FL, 0xFFD08EFFL), // Purple
+        Pair(0xFF5F3A1EL, 0xFFFFB270L), // Orange
+        Pair(0xFF5F1E3BL, 0xFFFF70D0L), // Pink
+        Pair(0xFF1E5F5BL, 0xFF70FFFA0L), // Teal
+        Pair(0xFF252A36L, 0xFFFFFFFFL)  // Dark Gray
+    )
+
+    var selectedColors by remember { mutableStateOf(colorOptions[0]) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF181B26),
+        title = {
+            Text(
+                text = "Nueva Categoría",
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nombre de la categoría") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PrimaryBlue,
+                        unfocusedBorderColor = DarkBorder,
+                        focusedLabelColor = PrimaryBlue,
+                        unfocusedLabelColor = Color(0xFF9CA3AF),
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Text(
+                    text = "Seleccionar Icono:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    iconOptions.forEach { (key, icon) ->
+                        val isSelected = selectedIconKey == key
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) PrimaryBlue else Color(0xFF252A36))
+                                .clickable { selectedIconKey = key }
+                                .padding(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    text = "Seleccionar Color:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    colorOptions.forEach { pair ->
+                        val isSelected = selectedColors == pair
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(Color(pair.first))
+                                .border(
+                                    width = if (isSelected) 2.dp else 0.dp,
+                                    color = if (isSelected) Color.White else Color.Transparent,
+                                    shape = CircleShape
+                                )
+                                .clickable { selectedColors = pair },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = Color(pair.second),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isNotBlank()) {
+                        onCategoryCreated(
+                            CategoryItem(
+                                name = name.trim(),
+                                iconKey = selectedIconKey,
+                                bgColorHex = selectedColors.first,
+                                textColorHex = selectedColors.second
+                            )
+                        )
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+            ) {
+                Text("Guardar", color = Color.White)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar", color = Color(0xFF9CA3AF))
+            }
+        }
+    )
 }
 
 @Composable
 private fun FormFieldCard(
     icon: ImageVector,
     label: String,
-    isRequired: Boolean = false,
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
-    isError: Boolean = false,
-    errorMessage: String? = null,
     minLines: Int = 1,
     readOnly: Boolean = false,
     onClick: (() -> Unit)? = null,
     trailingContent: (@Composable () -> Unit)? = null,
     footerContent: (@Composable () -> Unit)? = null
 ) {
-    Column {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(DarkSurface)
-                .border(
-                    border = BorderStroke(
-                        width = 1.dp,
-                        color = if (isError) Color.Red else DarkBorder
-                    ),
-                    shape = RoundedCornerShape(16.dp)
-                )
-                .then(
-                    if (onClick != null) Modifier.clickable { onClick() } else Modifier
-                )
-                .padding(16.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(DarkSurface)
+            .border(
+                border = BorderStroke(width = 1.dp, color = DarkBorder),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .then(
+                if (onClick != null) Modifier.clickable { onClick() } else Modifier
+            )
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = if (minLines > 1) Alignment.Top else Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = if (minLines > 1) Alignment.Top else Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = Color(0xFF9CA3AF),
-                    modifier = Modifier
-                        .size(22.dp)
-                        .padding(top = if (minLines > 1) 2.dp else 0.dp)
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color(0xFF9CA3AF),
+                modifier = Modifier
+                    .size(22.dp)
+                    .padding(top = if (minLines > 1) 2.dp else 0.dp)
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp),
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
                 )
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    if (value.isEmpty()) {
                         Text(
-                            text = label,
-                            style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp),
-                            fontWeight = FontWeight.SemiBold,
+                            text = placeholder,
+                            fontSize = 14.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+
+                    BasicTextField(
+                        value = value,
+                        onValueChange = onValueChange,
+                        readOnly = readOnly,
+                        minLines = minLines,
+                        enabled = onClick == null,
+                        textStyle = TextStyle(
+                            fontSize = 14.sp,
                             color = Color.White
-                        )
-                        if (isRequired) {
-                            Text(
-                                text = " *",
-                                style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp),
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF70B2FF)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        if (value.isEmpty()) {
-                            Text(
-                                text = placeholder,
-                                fontSize = 14.sp,
-                                color = Color(0xFF64748B)
-                            )
-                        }
-
-                        BasicTextField(
-                            value = value,
-                            onValueChange = onValueChange,
-                            readOnly = readOnly,
-                            minLines = minLines,
-                            enabled = onClick == null,
-                            textStyle = TextStyle(
-                                fontSize = 14.sp,
-                                color = Color.White
-                            ),
-                            cursorBrush = SolidColor(PrimaryBlue),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    if (footerContent != null) {
-                        footerContent()
-                    }
+                        ),
+                        cursorBrush = SolidColor(PrimaryBlue),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
 
-                if (trailingContent != null) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    trailingContent()
+                if (footerContent != null) {
+                    footerContent()
                 }
             }
-        }
 
-        if (isError && !errorMessage.isNullOrEmpty()) {
-            Text(
-                text = errorMessage,
-                color = Color.Red,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(start = 12.dp, top = 4.dp)
-            )
+            if (trailingContent != null) {
+                Spacer(modifier = Modifier.width(8.dp))
+                trailingContent()
+            }
         }
     }
 }

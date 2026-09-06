@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.act3.model.CategoryItem
 import com.example.act3.model.Event
 import com.example.act3.ui.EventViewModel
 import com.example.act3.ui.components.EventCard
@@ -63,7 +64,7 @@ fun EventListScreen(
     onNavigateToAddEvent: () -> Unit,
     onEditEvent: (Event) -> Unit = {}
 ) {
-    val categories = listOf("Todos", "Tecnología", "Educación", "Competencia")
+    val filterOptions = listOf("Todos") + viewModel.categories.map { it.name }
     val filteredEvents = viewModel.events.filter {
         viewModel.selectedCategory == "Todos" || it.category == viewModel.selectedCategory
     }
@@ -89,7 +90,7 @@ fun EventListScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(categories) { category ->
+                    items(filterOptions) { category ->
                         val isSelected = viewModel.selectedCategory == category
                         FilterChip(
                             selected = isSelected,
@@ -159,7 +160,7 @@ fun EventListScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "No hay eventos en esta categoría",
+                        text = if (viewModel.events.isEmpty()) "No hay eventos programados" else "No hay eventos en esta categoría",
                         style = MaterialTheme.typography.bodyLarge,
                         color = Color(0xFF64748B)
                     )
@@ -179,6 +180,7 @@ fun EventListScreen(
                 ) { event ->
                     AnimatedEventItem(
                         event = event,
+                        categoryItem = viewModel.getCategoryByName(event.category),
                         onDelete = { viewModel.removeEvent(event) },
                         onEdit = { onEditEvent(event) }
                     )
@@ -192,6 +194,7 @@ fun EventListScreen(
 @Composable
 private fun AnimatedEventItem(
     event: Event,
+    categoryItem: CategoryItem,
     onDelete: () -> Unit,
     onEdit: () -> Unit
 ) {
@@ -252,6 +255,7 @@ private fun AnimatedEventItem(
         ) {
             EventCard(
                 event = event,
+                categoryItem = categoryItem,
                 onExpand = { /* ... */ },
                 onEditClick = onEdit
             )
